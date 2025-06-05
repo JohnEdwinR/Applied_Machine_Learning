@@ -5,7 +5,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from hpelm import elm
 import numpy as np
 from sklearn.metrics import classification_report
 from sklearn.svm import SVC
@@ -65,6 +64,7 @@ X = df.drop('Potability', axis=1)
 y = df['Potability']
 X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
+from hpelm import ELM
 elm = ELM(X_train.shape[1], 1, classification="c")
 elm.add_neurons(100, "sigm")
 elm.train(X_train, y_train.values.reshape(-1, 1))
