@@ -175,4 +175,4 @@ for name, pred in models.items():
     f1 = f1_score(y_test, pred)
     print(f"{name}: Accuracy = {acc:.4f}, F1 Score = {f1:.4f}")
     
-joblib.dump(elm, 'elm_water_model.pkl')    
+joblib.dump(xbg, 'xgb_water_model.pkl')    
