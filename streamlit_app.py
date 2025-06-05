@@ -2,7 +2,7 @@ import streamlit as st
 import joblib
 import numpy as np
 
-model = joblib.load("xgb_water_model.pkl")
+model = joblib.load("elm_water_model.pkl")
 
 st.title("Water Potability Prediction")
 
