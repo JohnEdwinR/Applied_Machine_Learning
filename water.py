@@ -5,7 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from hpelm import ELM
+from hpelm import elm
 import numpy as np
 from sklearn.metrics import classification_report
 from sklearn.svm import SVC
