@@ -1,206 +1,178 @@
 import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, classification_report
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from hpelm import ELM
+import numpy as np
+from sklearn.metrics import classification_report
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from xgboost import XGBClassifier
-from hpelm import ELM
-from imblearn.over_sampling import SMOTE
+from sklearn.metrics import accuracy_score, f1_score
+import matplotlib.pyplot as plt
 import time
-import shap
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+from sklearn.metrics import accuracy_score, f1_score, classification_report
+import joblib
 
-class WaterPotabilityAnalysis:
-    def __init__(self):
-        """Initialize the class with necessary models and parameters"""
-        self.scaler = StandardScaler()
-        self.elm = None
-        self.svm = SVC(probability=True)  # probability=True for SHAP KernelExplainer
-        self.mlp = MLPClassifier(hidden_layer_sizes=(64, 32), max_iter=300)
-        self.xgb = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
-        self.df = None  # DataFrame will be loaded later
+df = pd.read_csv("water_potability.csv")
+df.head()
 
-    def load_and_preprocess_data(self, filepath):
-        """Load and preprocess the dataset"""
-        self.df = pd.read_csv(filepath)
-        self.df.fillna(self.df.median(), inplace=True)
-        X = self.df.drop('Potability', axis=1)
-        y = self.df['Potability']
-        X_scaled = self.scaler.fit_transform(X)
-        return train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+df.isnull().sum()
 
-    def visualize_data(self):
-        """Create visualizations for data analysis"""
-        plt.figure(figsize=(8, 6))
-        sns.countplot(x='Potability', data=self.df)
-        plt.title("Potable (1) vs Non-potable (0) Water Samples")
-        plt.show()
+df.fillna(df.median(), inplace=True)
 
-        for col in self.df.columns[:-1]:
-            plt.figure(figsize=(6, 4))
-            sns.histplot(self.df[col], kde=True, bins=30)
-            plt.title(f'Distribution of {col}')
-            plt.show()
+X = df.drop('Potability', axis=1)
+y = df['Potability']
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
 
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(self.df.corr(), annot=True, cmap='coolwarm', fmt=".2f")
-        plt.title("Correlation Matrix")
-        plt.show()
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-    def apply_smote(self, X_train, y_train):
-        """Apply SMOTE for handling class imbalance"""
-        smote = SMOTE(random_state=42)
-        return smote.fit_resample(X_train, y_train)
+print(df.shape)
+print(df.info())
+df.describe()
 
-    def train_models(self, X_train, y_train):
-        """Train all models and measure training time"""
-        self.elm = ELM(X_train.shape[1], 1, classification="c")
-        self.elm.add_neurons(100, "sigm")
+sns.countplot(x='Potability', data=df)
+plt.title("Potable (1) vs Non-potable (0) Water Samples")
+plt.show()
 
-        training_times = {}
+for col in df.columns[:-1]:
+  plt.figure(figsize=(6, 4))
+  sns.histplot(df[col], kde=True, bins=30)
+  plt.title(f'Distribution of {col}')
+  plt.show()
+  
+plt.figure(figsize=(10, 8))
+sns.heatmap(df.corr(), annot=True, cmap='coolwarm', fmt=".2f")
+plt.title("Correlation Matrix")
+plt.show()
 
-        start = time.time()
-        self.elm.train(X_train, y_train.values.reshape(-1, 1))
-        training_times['ELM'] = time.time() - start
+for col in df.columns[:-1]:
+  plt.figure(figsize=(6, 4))
+  sns.boxplot(x='Potability', y=col, data=df)
+  plt.title(f'{col} by Potability')
+  plt.show()
+  
+X = df.drop('Potability', axis=1)
+y = df['Potability']
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-        start = time.time()
-        self.svm.fit(X_train, y_train)
-        training_times['SVM'] = time.time() - start
+elm = ELM(X_train.shape[1], 1, classification="c")
+elm.add_neurons(100, "sigm")
+elm.train(X_train, y_train.values.reshape(-1, 1))
+y_pred_elm = elm.predict(X_test).flatten().round()
+print("ELM Classification Report:")
+print(classification_report(y_test, y_pred_elm))
 
-        start = time.time()
-        self.mlp.fit(X_train, y_train)
-        training_times['MLP'] = time.time() - start
+svm = SVC()
+svm.fit(X_train, y_train)
+y_pred_svm = svm.predict(X_test)
+print("SVM Classification Report:")
+print(classification_report(y_test, y_pred_svm))
 
-        start = time.time()
-        self.xgb.fit(X_train, y_train)
-        training_times['XGBoost'] = time.time() - start
+mlp = MLPClassifier(hidden_layer_sizes=(64, 32), max_iter=300)
+mlp.fit(X_train, y_train)
+y_pred_mlp = mlp.predict(X_test)
+print("MLP Classification Report:")
+print(classification_report(y_test, y_pred_mlp))
+  
+xbg = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+xbg.fit(X_train, y_train)
+y_pred_xgb = xbg.predict(X_test)
+print("XGBoost Classification Report:")
+print(classification_report(y_test, y_pred_xgb))
 
-        return training_times
+models = {
+    'ELM': y_pred_elm,
+    'SVM': y_pred_svm,
+    'MLP': y_pred_mlp,
+    'XGBoost': y_pred_xgb
+}
 
-    def evaluate_models(self, X_test, y_test):
-        """Evaluate all models and return performance metrics"""
-        predictions = {
-            'ELM': self.elm.predict(X_test).flatten().round(),
-            'SVM': self.svm.predict(X_test),
-            'MLP': self.mlp.predict(X_test),
-            'XGBoost': self.xgb.predict(X_test)
-        }
+for name, pred in models.items():
+  acc = accuracy_score(y_test, pred)
+  f1 = f1_score(y_test, pred)
+  print(f"{name}: Accuracy = {acc:.4f}, F1 Score = {f1:.4f}")
+  
+accuracies = [0.6418, 0.6921, 0.6174, 0.6540]
+f1_scores = [0.4140, 0.4358, 0.4760, 0.4899]
+models = ['ELM', 'SVM', 'MLP', 'XGBoost']
 
-        results = {}
-        for name, pred in predictions.items():
-            results[name] = {
-                'accuracy': accuracy_score(y_test, pred),
-                'f1': f1_score(y_test, pred),
-                'report': classification_report(y_test, pred)
-            }
+plt.figure(figsize=(10, 5))
+plt.bar(models, accuracies, color='skyblue', label='Accuracy')
+plt.bar(models, f1_scores, color='salmon', alpha=0.7, label='F1 Score')
+plt.title("Model Comparison: Accuracy & F1 Score")
+plt.ylabel("Score")
+plt.legend()
+plt.show()
 
-        return results
+start = time.time()
+elm.train(X_train, y_train.values.reshape(-1, 1))
+elm_time = time.time() - start
 
-    def plot_results(self, results):
-        """Plot comparison of model performances"""
-        accuracies = [results[model]['accuracy'] for model in results]
-        f1_scores = [results[model]['f1'] for model in results]
-        models = list(results.keys())
+start = time.time()
+svm.fit(X_train, y_train)
+svm_time = time.time() - start
 
-        plt.figure(figsize=(10, 5))
-        plt.bar(models, accuracies, color='skyblue', label='Accuracy')
-        plt.bar(models, f1_scores, color='salmon', alpha=0.7, label='F1 Score')
-        plt.title("Model Comparison: Accuracy & F1 Score")
-        plt.ylabel("Score")
-        plt.legend()
-        plt.show()
+start = time.time()
+mlp.fit(X_train, y_train)
+mlp_time = time.time() - start
 
-    def explain_models(self, X_train, X_test):
-        """Explain models using SHAP"""
-        print("Starting SHAP explainability...")
+start = time.time()
+xbg.fit(X_train, y_train)
+xgb_time = time.time() - start
 
-        # XGBoost explainer
-        explainer_xgb = shap.Explainer(self.xgb)
-        shap_values_xgb = explainer_xgb(X_test)
-        print("Showing SHAP summary plot for XGBoost")
-        shap.summary_plot(shap_values_xgb, X_test, feature_names=self.df.columns[:-1])
+print(f"ELM Train Time: {elm_time:.4f}s")
+print(f"SVM Train Time: {svm_time:.4f}s")
+print(f"MLP Train Time: {mlp_time:.4f}s")
+print(f"XGBoost Train Time: {xgb_time:.4f}s")
 
-        # Sample train and test data for KernelExplainer
-        sample_X_train = shap.sample(X_train, 100, random_state=42)
-        sample_X_test = shap.sample(X_test, 50, random_state=42)
+cm = confusion_matrix(y_test, y_pred_elm)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+disp.plot()
+plt.title("ELM Confusion Matrix")
+plt.show()
 
-        # Convert to numpy arrays explicitly
-        sample_X_train_np = np.array(sample_X_train)
-        sample_X_test_np = np.array(sample_X_test)
+X = df.drop('Potability', axis=1)
+y = df['Potability']
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+smote = SMOTE(random_state=42)
+X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
+unique, counts = np.unique(y_train_smote, return_counts=True)
+print(dict(zip(unique, counts)))
 
-        # MLP KernelExplainer
-        try:
-            explainer_mlp = shap.KernelExplainer(self.mlp.predict_proba, sample_X_train_np)
-            shap_values_mlp = explainer_mlp.shap_values(sample_X_test_np)
-            print("Showing SHAP summary plot for MLP")
-            
-            # Debug: Print shapes to understand the structure
-            print(f"MLP SHAP values type: {type(shap_values_mlp)}")
-            if isinstance(shap_values_mlp, list):
-                print(f"MLP SHAP values length: {len(shap_values_mlp)}")
-                print(f"MLP SHAP values[1] shape: {shap_values_mlp[1].shape}")
-                print(f"Sample test data shape: {sample_X_test_np.shape}")
-                # For binary classification, use the positive class (index 1)
-                shap.summary_plot(shap_values_mlp[1], sample_X_test_np, feature_names=self.df.columns[:-1])
-            else:
-                print(f"MLP SHAP values shape: {shap_values_mlp.shape}")
-                # If it's not a list, use it directly
-                shap.summary_plot(shap_values_mlp, sample_X_test_np, feature_names=self.df.columns[:-1])
-        except Exception as e:
-            print(f"Error with MLP SHAP explanation: {e}")
-            print("Skipping MLP SHAP plot...")
+elm = ELM(X_train_smote.shape[1], 1, classification="c")
+elm.add_neurons(100, "sigm")
 
-        # SVM KernelExplainer
-        try:
-            explainer_svm = shap.KernelExplainer(self.svm.predict_proba, sample_X_train_np)
-            shap_values_svm = explainer_svm.shap_values(sample_X_test_np)
-            print("Showing SHAP summary plot for SVM")
-            
-            # Debug: Print shapes to understand the structure
-            print(f"SVM SHAP values type: {type(shap_values_svm)}")
-            if isinstance(shap_values_svm, list):
-                print(f"SVM SHAP values length: {len(shap_values_svm)}")
-                print(f"SVM SHAP values[1] shape: {shap_values_svm[1].shape}")
-                print(f"Sample test data shape: {sample_X_test_np.shape}")
-                # For binary classification, use the positive class (index 1)
-                shap.summary_plot(shap_values_svm[1], sample_X_test_np, feature_names=self.df.columns[:-1])
-            else:
-                print(f"SVM SHAP values shape: {shap_values_svm.shape}")
-                # If it's not a list, use it directly
-                shap.summary_plot(shap_values_svm, sample_X_test_np, feature_names=self.df.columns[:-1])
-        except Exception as e:
-            print(f"Error with SVM SHAP explanation: {e}")
-            print("Skipping SVM SHAP plot...")
+elm.train(X_train_smote, y_train_smote.values.reshape(-1, 1))
+y_pred_elm = elm.predict(X_test).flatten().round()
+svm.fit(X_train_smote, y_train_smote)
+y_pred_svm = svm.predict(X_test)
+mlp.fit(X_train_smote, y_train_smote)
+y_pred_mlp = mlp.predict(X_test)
+xbg.fit(X_train_smote, y_train_smote)
+y_pred_xgb = xbg.predict(X_test)
 
-        print("SHAP explainability done.")
+models = {
+    'ELM': y_pred_elm,
+    'SVM': y_pred_svm,
+    'MLP': y_pred_mlp,
+    'XGBoost': y_pred_xgb
+}
 
-def main():
-    analysis = WaterPotabilityAnalysis()
-
-    X_train, X_test, y_train, y_test = analysis.load_and_preprocess_data("water_potability.csv")
-
-    analysis.visualize_data()
-
-    X_train_smote, y_train_smote = analysis.apply_smote(X_train, y_train)
-
-    training_times = analysis.train_models(X_train_smote, y_train_smote)
-
-    results = analysis.evaluate_models(X_test, y_test)
-
-    for model, metrics in results.items():
-        print(f"\n{model} Results:")
-        print(f"Accuracy: {metrics['accuracy']:.4f}")
-        print(f"F1 Score: {metrics['f1']:.4f}")
-        print(f"Training Time: {training_times[model]:.4f}s")
-        print("Classification Report:")
-        print(metrics['report'])
-
-    analysis.plot_results(results)
-
-    analysis.explain_models(X_train_smote, X_test)
-
-if __name__ == "__main__":
-    main()
+for name, pred in models.items():
+    acc = accuracy_score(y_test, pred)
+    f1 = f1_score(y_test, pred)
+    print(f"{name}: Accuracy = {acc:.4f}, F1 Score = {f1:.4f}")
+    
+joblib.dump(elm, 'elm_water_model.pkl')    
