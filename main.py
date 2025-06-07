@@ -74,7 +74,7 @@ generator_optimizer = tf.keras.optimizers.Adam(1e-4)
 discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 
 # --- Prepare dataset ---
-BUFFER_SIZE = 500
+BUFFER_SIZE = 50000
 BATCH_SIZE = 256
 EPOCHS = 1000
 NOISE_DIM = 100
